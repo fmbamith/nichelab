@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NicheLab | Advanced YouTube Analyzer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #8b5cf6; /* Violet */
+            --secondary: #06b6d4; /* Cyan */
+            --bg: #0f172a; /* Slate 900 */
+            --card: #1e293b; /* Slate 800 */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #f8fafc;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* Animations */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(6, 182, 212, 0.4); }
+        }
+
+        .glow-effect {
+            animation: pulse-glow 3s infinite;
+        }
+
+        .gradient-text {
+            background: linear-gradient(to right, #22d3ee, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Autocomplete Dropdown */
+        #suggestionsList {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0 0 1rem 1rem;
+            z-index: 50;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+        #suggestionsList div {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
+        }
+        #suggestionsList div:hover {
+            background: #334155;
+            color: var(--secondary);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <nav class="w-full h-16 border-b border-slate-700 flex items-center justify-between px-6 bg-slate-900/90 sticky top-0 z-50 backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <i class="fa-brands fa-youtube text-3xl text-red-500"></i>
+            <span class="text-xl font-bold tracking-tight">Niche<span class="text-cyan-400">Lab</span></span>
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- Saved Niches Dropdown could go here, for now just a button -->
+            <button onclick="showSavedNiches()" class="text-sm font-medium text-slate-400 hover:text-cyan-400 transition hidden md:block">
+                <i class="fa-solid fa-bookmark mr-1"></i> Saved
+            </button>
+            <button onclick="openSettings()" class="text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-gear text-xl"></i>
+            </button>
+            <a href="#" class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-lg shadow-violet-500/20">
+                Pro Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-7xl">
+        
+        <!-- Search Hero -->
+        <div class="flex flex-col items-center justify-center py-12 text-center space-y-6">
+            <h1 class="text-4xl md:text-6xl font-black mb-2">
+                Find Your <span class="gradient-text">Blue Ocean</span>
+            </h1>
+            <p class="text-slate-400 max-w-2xl text-lg">
+                Analyze YouTube competition, discover outliers, and validate your niche before you record.
+            </p>
+            
+            <div class="relative w-full max-w-2xl mt-8 z-40">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Enter Niche (e.g., 'Samsung S25 Review', 'Calisthenics')" 
+                        class="w-full bg-slate-800/80 border border-slate-700 text-white rounded-full py-4 pl-6 pr-16 text-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition shadow-2xl" autocomplete="off">
+                    <button onclick="startAnalysis()" class="absolute right-2 top-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white w-12 h-12 rounded-full flex items-center justify-center transition shadow-lg">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
+                <!-- Suggestions Container -->
+                <div id="suggestionsList" class="hidden"></div>
+            </div>
+
+            <div class="flex gap-4 text-sm text-slate-500 mt-2">
+                <span><i class="fa-solid fa-fire text-orange-500 mr-1"></i> Trending:</span>
+                <button onclick="setSearch('Coding Setup')" class="hover:text-cyan-400 transition">Coding Setup</button>
+                <button onclick="setSearch('Samsung Galaxy S25')" class="hover:text-cyan-400 transition">Samsung S25</button>
+                <button onclick="setSearch('Minimalist Desk')" class="hover:text-cyan-400 transition">Minimalist Desk</button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loaderSection" class="hidden flex flex-col items-center justify-center py-20">
+            <div class="loader mb-4"></div>
+            <h3 class="text-xl font-semibold animate-pulse text-cyan-400">Analyzing YouTube API...</h3>
+            <p class="text-slate-500 text-sm mt-2" id="loadingText">Fetching search results...</p>
+        </div>
+
+        <!-- Results Dashboard -->
+        <div id="resultsDashboard" class="hidden space-y-8 animate-fade-in-up">
+            
+            <!-- Dashboard Toolbar -->
+            <div class="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <h2 id="currentQueryDisplay" class="text-xl font-bold text-white uppercase tracking-wide">Analysis Results</h2>
+                <div class="flex gap-2">
+                    <button onclick="saveCurrentAnalysis()" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition">
+                        <i class="fa-regular fa-bookmark"></i> Save Niche
+                    </button>
+                    <button onclick="compareNichesStub()" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition">
+                        <i class="fa-solid fa-scale-balanced"></i> Compare
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Niche Grade -->
+                <div class="glass-panel p-6 rounded-2xl border-l-4 border-l-violet-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="fa-solid fa-trophy text-6xl text-violet-500"></i>
+                    </div>
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">Niche Grade</p>
+                    <div class="flex items-end gap-2 mt-2">
+                        <h2 id="nicheGrade" class="text-5xl font-black text-white">B+</h2>
+                        <span id="nicheVerdict" class="text-cyan-400 font-semibold mb-1">Good Potential</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Based on Demand vs. Competition ratio</p>
+                </div>
+
+                <!-- Search Volume (Proxy) -->
+                <div class="glass-panel p-6 rounded-2xl border-l-4 border-l-cyan-500">
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">Avg Views (Top 50)</p>
+                    <h2 id="avgViews" class="text-3xl font-bold text-white mt-2">--</h2>
+                    <div class="mt-2 flex items-center text-sm">
+                        <i class="fa-solid fa-eye text-cyan-400 mr-2"></i>
+                        <span class="text-slate-400">Demand Indicator</span>
+                    </div>
+                </div>
+
+                <!-- Competition -->
+                <div class="glass-panel p-6 rounded-2xl border-l-4 border-l-red-500">
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">Avg Subscribers</p>
+                    <h2 id="avgSubs" class="text-3xl font-bold text-white mt-2">--</h2>
+                    <div class="mt-2 flex items-center text-sm">
+                        <i class="fa-solid fa-user-ninja text-red-400 mr-2"></i>
+                        <span class="text-slate-400">Competition Level</span>
+                    </div>
+                </div>
+
+                <!-- Opportunity (Outliers) -->
+                <div class="glass-panel p-6 rounded-2xl border-l-4 border-l-green-500 glow-effect">
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">Outliers Found</p>
+                    <h2 id="outlierCount" class="text-3xl font-bold text-white mt-2">--</h2>
+                    <div class="mt-2 flex items-center text-sm">
+                        <i class="fa-solid fa-arrow-trend-up text-green-400 mr-2"></i>
+                        <span class="text-slate-400">Small channels ranking high</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Main Scatter Plot -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-white">Demand vs. Competition</h3>
+                        <div class="flex gap-2">
+                             <button onclick="exportAs('png')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300 transition" title="Export Chart">
+                                <i class="fa-solid fa-download"></i> PNG
+                            </button>
+                            <div class="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">
+                                <span class="text-green-400">●</span> Outliers
+                                <span class="text-slate-500 ml-2">●</span> Normal
+                            </div>
+                        </div>
+                    </div>
+                    <div class="h-64 md:h-80 w-full">
+                        <canvas id="scatterChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Engagement Gauge/Stat -->
+                <div class="glass-panel p-6 rounded-2xl flex flex-col">
+                    <h3 class="text-lg font-bold text-white mb-4">Market Saturation</h3>
+                    <div class="flex-grow flex items-center justify-center relative">
+                        <canvas id="doughnutChart"></canvas>
+                        <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                            <span id="saturationText" class="text-2xl font-bold text-white">--%</span>
+                            <span class="text-xs text-slate-500">Saturation</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <p id="saturationAdvice" class="text-sm text-slate-400">Analysis pending...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden">
+                <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-white">Top Performing Videos</h3>
+                    <button onclick="exportAs('csv')" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded text-cyan-400 transition">
+                        Export CSV
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-400">
+                        <thead class="bg-slate-800/50 text-xs uppercase font-medium text-slate-300">
+                            <tr>
+                                <th class="px-6 py-4">Video Details</th>
+                                <th class="px-6 py-4">Views</th>
+                                <th class="px-6 py-4">Channel Subs</th>
+                                <th class="px-6 py-4">Outlier Score</th>
+                                <th class="px-6 py-4">Age</th>
+                            </tr>
+                        </thead>
+                        <tbody id="videoTableBody" class="divide-y divide-slate-700/50">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900 py-8 mt-12">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-slate-500 text-sm">
+                Built with <i class="fa-solid fa-bolt text-yellow-500"></i> by Amith (Future NITC Engineer)
+            </p>
+            <p class="text-slate-600 text-xs mt-2">
+                &copy; 2026 NicheLab. Not affiliated with YouTube.
+            </p>
+        </div>
+    </footer>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm hidden flex items-center justify-center">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md w-full shadow-2xl relative">
+            <button onclick="closeSettings()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <h2 class="text-2xl font-bold text-white mb-2">API Settings</h2>
+            <p class="text-slate-400 text-sm mb-6">
+                To use live data, you need a YouTube Data API v3 Key.
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-cyan-400 hover:underline">Get one here</a>.
+            </p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase mb-2">Your API Key</label>
+                    <div class="relative">
+                        <input type="password" id="apiKeyInput" placeholder="AIzaSy..." 
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none pr-20">
+                        <button onclick="copyApiKey()" class="absolute right-2 top-2 bottom-2 bg-slate-700 hover:bg-slate-600 text-xs text-white px-3 rounded transition">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <button onclick="saveKey()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-lg transition">
+                    Save Key
+                </button>
+                
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-700"></div>
+                    <span class="flex-shrink-0 mx-4 text-slate-500 text-xs uppercase">Or</span>
+                    <div class="flex-grow border-t border-slate-700"></div>
+                </div>
+
+                <button onclick="useDemoMode()" class="w-full bg-slate-700 hover:bg-slate-600 text-cyan-400 font-bold py-3 rounded-lg transition border border-cyan-500/30">
+                    <i class="fa-solid fa-robot mr-2"></i> Run Demo Mode
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            apiKey: localStorage.getItem('yt_niche_key') || '',
+            demoMode: false,
+            chartInstances: [],
+            currentData: null, // Store current analysis for export/save
+            savedNiches: JSON.parse(localStorage.getItem('savedNiches') || '[]')
+        };
+
+        // --- Performance: Caching ---
+        const cache = new Map();
+
+        async function fetchWithCache(url) {
+            if (cache.has(url)) {
+                console.log("Serving from cache:", url);
+                return cache.get(url);
+            }
+            const response = await fetch(url);
+            if (!response.ok) {
+                 // Clone response to read text for error details, but throw so we don't cache errors
+                const err = await response.json();
+                throw new Error(err.error?.message || response.statusText);
+            }
+            const data = await response.json();
+            cache.set(url, data);
+            return data;
+        }
+
+        // --- Mock Data for Demo Mode (Amith's Fav: Samsung) ---
+        const MOCK_DATA = {
+            keyword: "Samsung Galaxy S25 Review",
+            items: Array.from({length: 30}, (_, i) => {
+                const views = Math.floor(Math.random() * 500000) + 10000;
+                // Generate outliers: Small subs but high views
+                const isOutlier = Math.random() > 0.7;
+                const subs = isOutlier ? Math.floor(views / 10) : Math.floor(views * (Math.random() * 2 + 0.5));
+                
+                return {
+                    id: `vid_${i}`,
+                    snippet: {
+                        title: `Samsung Galaxy S25 Ultra Review - ${isOutlier ? 'HONEST TRUTH!' : 'Is it worth it?'}`,
+                        channelTitle: isOutlier ? `Tech Underdog ${i}` : `Mega Tech Reviewer ${i}`,
+                        publishedAt: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toISOString(),
+                        thumbnails: { medium: { url: `https://picsum.photos/seed/${i}/320/180` } } // Random images
+                    },
+                    statistics: {
+                        viewCount: views,
+                        likeCount: Math.floor(views * 0.05),
+                        commentCount: Math.floor(views * 0.005)
+                    },
+                    channelStats: {
+                        subscriberCount: subs,
+                        videoCount: 100
+                    }
+                };
+            })
+        };
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("%c Yo Amith! NIT Calicut awaits. Let's code this. ", "background: #222; color: #bada55; font-size: 16px; padding: 10px; border-radius: 5px;");
+            
+            if (!state.apiKey) {
+                document.getElementById('settingsModal').classList.remove('hidden');
+            } else {
+                document.getElementById('apiKeyInput').value = state.apiKey;
+            }
+        });
+
+        // --- Real-time Suggestions (Debounced) ---
+        const searchInput = document.getElementById('searchInput');
+        const suggestionsList = document.getElementById('suggestionsList');
+        let debounceTimer;
+
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const query = e.target.value;
+            
+            if (query.length < 2) {
+                suggestionsList.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetchSuggestions(query);
+            }, 300);
+        });
+
+        async function fetchSuggestions(query) {
+            // Note: Real YouTube autocomplete API often blocks cross-origin browser requests.
+            // Using a mock fallback for reliable demo behavior if fetch fails.
+            try {
+                // Try JSONP or proxy approach in real prod. Here we simulate relevant tags.
+                const mockSuggestions = [
+                    query, 
+                    `${query} review`, 
+                    `${query} tutorial`, 
+                    `${query} vs iphone`, 
+                    `best ${query} 2026`,
+                    `${query} guide`
+                ];
+                
+                renderSuggestions(mockSuggestions);
+            } catch (e) {
+                console.log("Suggestion fetch failed", e);
+            }
+        }
+
+        function renderSuggestions(list) {
+            suggestionsList.innerHTML = '';
+            if (list.length === 0) {
+                suggestionsList.classList.add('hidden');
+                return;
+            }
+            
+            list.forEach(item => {
+                const div = document.createElement('div');
+                div.textContent = item;
+                div.onclick = () => {
+                    searchInput.value = item;
+                    suggestionsList.classList.add('hidden');
+                    startAnalysis();
+                };
+                suggestionsList.appendChild(div);
+            });
+            suggestionsList.classList.remove('hidden');
+        }
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+                suggestionsList.classList.add('hidden');
+            }
+        });
+
+        // --- Shortcuts ---
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') startAnalysis();
+            if (e.key === 'Escape') {
+                closeSettings();
+                suggestionsList.classList.add('hidden');
+            }
+        });
+
+        // --- UI Functions ---
+        function copyApiKey() {
+            const keyInput = document.getElementById('apiKeyInput');
+            // Show password briefly to copy (if type=password cannot be selected in some browsers)
+            const type = keyInput.type;
+            keyInput.type = 'text';
+            keyInput.select();
+            document.execCommand('copy'); // Fallback for older browsers
+            try {
+                navigator.clipboard.writeText(keyInput.value);
+            } catch (err) {}
+            
+            keyInput.type = type;
+            alert('API Key copied to clipboard!');
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                state.apiKey = key;
+                localStorage.setItem('yt_niche_key', key);
+                state.demoMode = false;
+                closeSettings();
+                alert('API Key Saved! You can now analyze real data.');
+            }
+        }
+
+        function useDemoMode() {
+            state.demoMode = true;
+            closeSettings();
+            document.getElementById('searchInput').value = "Samsung Galaxy S25 Review";
+            startAnalysis();
+        }
+
+        function setSearch(term) {
+            document.getElementById('searchInput').value = term;
+            suggestionsList.classList.add('hidden');
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num;
+        }
+
+        // --- New Features: Save & Export ---
+        function saveCurrentAnalysis() {
+            if (!state.currentData) return alert("Run an analysis first!");
+            
+            const analysis = {
+                keyword: document.getElementById('searchInput').value,
+                grade: state.currentData.grade,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Avoid duplicates
+            const exists = state.savedNiches.some(n => n.keyword === analysis.keyword);
+            if (!exists) {
+                state.savedNiches.push(analysis);
+                localStorage.setItem('savedNiches', JSON.stringify(state.savedNiches));
+                alert(`Saved "${analysis.keyword}" to your dashboard!`);
+            } else {
+                alert("This niche is already saved.");
+            }
+        }
+
+        function showSavedNiches() {
+            const saved = JSON.parse(localStorage.getItem('savedNiches') || '[]');
+            if(saved.length === 0) return alert("No saved niches yet.");
+            
+            const list = saved.map(n => `${n.keyword} (Grade: ${n.grade})`).join('\n');
+            alert("Your Saved Niches:\n\n" + list);
+        }
+
+        function compareNichesStub() {
+            alert("Comparative Analysis Mode coming soon! This will allow you to put 'Samsung S25' vs 'iPhone 17' side-by-side.");
+        }
+
+        function exportAs(type) {
+            if (!state.currentData) return;
+
+            if (type === 'png') {
+                const canvas = document.getElementById('scatterChart');
+                const link = document.createElement('a');
+                link.download = `niche-analysis-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } else if (type === 'csv') {
+                const items = state.currentData.items;
+                const headers = ["Title", "Channel", "Views", "Subscribers", "Is Outlier", "Published Date"];
+                const csvContent = [
+                    headers.join(','),
+                    ...items.map(i => `"${i.title.replace(/"/g, '""')}","${i.channel}","${i.views}","${i.subs}","${i.isOutlier}","${i.publishedAt}"`)
+                ].join('\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = "niche_data.csv";
+                link.click();
+            }
+        }
+
+        // --- Core Analysis Logic ---
+        async function startAnalysis() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) return alert("Please enter a niche keyword.");
+            suggestionsList.classList.add('hidden');
+
+            // UI Reset
+            document.getElementById('resultsDashboard').classList.add('hidden');
+            document.getElementById('loaderSection').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = `Scouring YouTube for "${query}"...`;
+
+            try {
+                let processedData = [];
+
+                if (state.demoMode) {
+                    await new Promise(r => setTimeout(r, 1500)); // Fake network delay
+                    processedData = processRawData(MOCK_DATA.items);
+                } else {
+                    if (!state.apiKey) {
+                        openSettings();
+                        throw new Error("API Key required");
+                    }
+                    processedData = await fetchRealData(query);
+                }
+
+                state.currentData = processedData; // Store for export
+                renderDashboard(processedData);
+
+            } catch (error) {
+                console.error(error);
+                if (error.message.includes('quota')) {
+                    alert('YouTube API quota exceeded. Try again tomorrow or use Demo Mode!');
+                } else {
+                    alert("Error: " + error.message);
+                }
+                document.getElementById('loaderSection').classList.add('hidden');
+            }
+        }
+
+        // --- API Interaction (The "Fully Working" Part) ---
+        async function fetchRealData(query) {
+            const BASE_URL = 'https://www.googleapis.com/youtube/v3';
+            
+            // 1. Search List
+            const searchUrl = `${BASE_URL}/search?part=snippet&q=${query}&type=video&maxResults=40&order=relevance&key=${state.apiKey}`;
+            const searchJson = await fetchWithCache(searchUrl);
+            
+            if (searchJson.error) throw new Error(searchJson.error.message);
+
+            const videoIds = searchJson.items.map(item => item.id.videoId).join(',');
+            const channelIds = [...new Set(searchJson.items.map(item => item.snippet.channelId))].join(',');
+
+            // 2. Video Stats
+            const videoUrl = `${BASE_URL}/videos?part=statistics,snippet&id=${videoIds}&key=${state.apiKey}`;
+            const videoJson = await fetchWithCache(videoUrl);
+
+            // 3. Channel Stats (To get subscriber counts)
+            const channelUrl = `${BASE_URL}/channels?part=statistics&id=${channelIds}&key=${state.apiKey}`;
+            const channelJson = await fetchWithCache(channelUrl);
+
+            // Create a map for channel stats
+            const channelMap = {};
+            channelJson.items.forEach(ch => {
+                channelMap[ch.id] = ch.statistics;
+            });
+
+            // Merge Data
+            const mergedItems = videoJson.items.map(video => {
+                const channelStat = channelMap[video.snippet.channelId];
+                return {
+                    ...video,
+                    channelStats: channelStat || { subscriberCount: 0, videoCount: 0 } // Fallback
+                };
+            });
+
+            return processRawData(mergedItems);
+        }
+
+        // --- Data Processing Algorithm ---
+        function processRawData(items) {
+            // Filter out items without stats
+            const validItems = items.filter(i => i.statistics && i.channelStats);
+
+            let totalViews = 0;
+            let totalSubs = 0;
+            let outliers = 0;
+            
+            const analyzedItems = validItems.map(item => {
+                const views = parseInt(item.statistics.viewCount) || 0;
+                const subs = parseInt(item.channelStats.subscriberCount) || 1; // Avoid divide by zero
+                
+                // Outlier Logic: If Views are 3x higher than Subs, it's a breakout video
+                const isOutlier = views > (subs * 3) && views > 10000; 
+                if (isOutlier) outliers++;
+
+                return {
+                    title: item.snippet.title,
+                    views: views,
+                    subs: subs,
+                    isOutlier: isOutlier,
+                    outlierScore: (views / subs).toFixed(2),
+                    publishedAt: item.snippet.publishedAt,
+                    channel: item.snippet.channelTitle,
+                    thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url
+                };
+            });
+
+            // Averages
+            analyzedItems.forEach(i => {
+                totalViews += i.views;
+                totalSubs += i.subs;
+            });
+
+            const avgViews = Math.floor(totalViews / analyzedItems.length);
+            const avgSubs = Math.floor(totalSubs / analyzedItems.length);
+
+            // Niche Grade Calculation
+            // Demand (0-50 pts) + Opportunity (0-50 pts)
+            let demandScore = Math.min(50, (avgViews / 10000)); // Cap at 50 if avg views > 500k
+            
+            // Competition score (Inverse: Lower subs = Higher score)
+            let compScore = 0;
+            if (avgSubs < 10000) compScore = 50;
+            else if (avgSubs < 100000) compScore = 30;
+            else if (avgSubs < 1000000) compScore = 10;
+            else compScore = 5;
+
+            // Adjust by outliers
+            let outlierBonus = Math.min(20, outliers * 2);
+
+            let totalScore = demandScore + compScore + outlierBonus;
+            
+            // Saturation Percentage (High subs = saturated)
+            let saturation = Math.min(100, (avgSubs / 500000) * 100).toFixed(0);
+
+            return {
+                avgViews,
+                avgSubs,
+                outlierCount: outliers,
+                items: analyzedItems,
+                grade: getGrade(totalScore),
+                verdict: getVerdict(totalScore),
+                saturation
+            };
+        }
+
+        function getGrade(score) {
+            if (score > 80) return "A+";
+            if (score > 70) return "A";
+            if (score > 60) return "B";
+            if (score > 40) return "C";
+            return "D";
+        }
+
+        function getVerdict(score) {
+            if (score > 80) return "Untapped Goldmine";
+            if (score > 60) return "Good Potential";
+            if (score > 40) return "Competitive";
+            return "Oversaturated";
+        }
+
+        // --- Render Functions ---
+        function renderDashboard(data) {
+            document.getElementById('loaderSection').classList.add('hidden');
+            document.getElementById('resultsDashboard').classList.remove('hidden');
+            document.getElementById('currentQueryDisplay').innerText = document.getElementById('searchInput').value;
+
+            // 1. Text Stats
+            document.getElementById('nicheGrade').innerText = data.grade;
+            document.getElementById('nicheVerdict').innerText = data.verdict;
+            document.getElementById('avgViews').innerText = formatNumber(data.avgViews);
+            document.getElementById('avgSubs').innerText = formatNumber(data.avgSubs);
+            document.getElementById('outlierCount').innerText = data.outlierCount;
+            document.getElementById('saturationText').innerText = data.saturation + "%";
+
+            // Advice logic
+            const adviceEl = document.getElementById('saturationAdvice');
+            if(data.saturation > 70) adviceEl.innerText = "High competition. Niche down further.";
+            else if(data.saturation < 30) adviceEl.innerText = "Blue Ocean! Start recording now.";
+            else adviceEl.innerText = "Healthy market. Quality wins here.";
+
+            // 2. Table
+            const tbody = document.getElementById('videoTableBody');
+            tbody.innerHTML = '';
+            
+            // Sort by views descending
+            const topVideos = data.items.sort((a,b) => b.views - a.views).slice(0, 10);
+            
+            topVideos.forEach(vid => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-800/50 transition";
+                row.innerHTML = `
+                    <td class="px-6 py-4 flex items-center gap-3">
+                         <img src="${vid.thumbnail}" class="w-16 h-9 object-cover rounded shadow-sm border border-slate-600">
+                         <div class="truncate max-w-xs">
+                            <div class="font-medium text-white truncate" title="${vid.title}">${vid.title}</div>
+                            <div class="text-xs text-slate-500">${vid.channel}</div>
+                         </div>
+                    </td>
+                    <td class="px-6 py-4 text-cyan-400 font-mono">${formatNumber(vid.views)}</td>
+                    <td class="px-6 py-4 text-slate-400 font-mono">${formatNumber(vid.subs)}</td>
+                    <td class="px-6 py-4">
+                        ${vid.isOutlier 
+                            ? `<span class="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs font-bold shadow-green-500/20 shadow-sm">OUTLIER (${vid.outlierScore}x)</span>` 
+                            : `<span class="text-slate-600">-</span>`}
+                    </td>
+                    <td class="px-6 py-4 text-xs text-slate-500">${new Date(vid.publishedAt).toLocaleDateString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // 3. Charts
+            renderCharts(data);
+        }
+
+        function renderCharts(data) {
+            // Clear existing charts
+            state.chartInstances.forEach(chart => chart.destroy());
+            state.chartInstances = [];
+
+            // --- Scatter Chart (Demand vs Competition) ---
+            const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+            
+            const scatterData = data.items.map(item => ({
+                x: item.subs,
+                y: item.views,
+                title: item.title // custom prop
+            }));
+
+            const scatterChart = new Chart(ctxScatter, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Video Performance',
+                        data: scatterData,
+                        backgroundColor: (context) => {
+                            const raw = context.raw;
+                            // Green if Views > Subs (Opportunity)
+                            return (raw && raw.y > raw.x) ? '#4ade80' : '#ef4444';
+                        },
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'logarithmic', // Log scale because subs vary wildly
+                            title: { display: true, text: 'Subscribers (Log Scale)', color: '#94a3b8' },
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: { display: true, text: 'Views (Log Scale)', color: '#94a3b8' },
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const d = ctx.raw;
+                                    return `Views: ${formatNumber(d.y)} | Subs: ${formatNumber(d.x)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            state.chartInstances.push(scatterChart);
+
+            // --- Doughnut Chart (Saturation) ---
+            const ctxDoughnut = document.getElementById('doughnutChart').getContext('2d');
+            const satVal = parseInt(data.saturation);
+            
+            const doughnutChart = new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Saturated', 'Open'],
+                    datasets: [{
+                        data: [satVal, 100 - satVal],
+                        backgroundColor: ['#ef4444', '#22d3ee'],
+                        borderWidth: 0,
+                        cutout: '80%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+            state.chartInstances.push(doughnutChart);
+        }
+    </script>
+</body>
+</html>
